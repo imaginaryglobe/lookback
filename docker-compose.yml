@@ -1,0 +1,12 @@
+# Qdrant vector database, self-hosted via Docker.
+# Data persists in ./qdrant_storage (bind mount) so it survives container restarts/recreation.
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: media-search-qdrant
+    ports:
+      - "6333:6333"   # REST API used by qdrant-client
+      - "6334:6334"   # gRPC
+    volumes:
+      - ./qdrant_storage:/qdrant/storage
+    restart: unless-stopped

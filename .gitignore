@@ -1,0 +1,20 @@
+# Environment / secrets
+.env
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Claude Code local settings
+.claude/
+
+# Generated / runtime data (personal media metadata)
+qdrant_storage/
+thumbnails/
+frames/
+index_progress.json
+indexing_stats.json
+
+# Internal dev notes, not meant for the public repo
+media_search_app_spec.md

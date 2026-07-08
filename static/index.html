@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Media Search</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, Segoe UI, Arial, sans-serif;
+    margin: 0;
+    background: #14161a;
+    color: #e8e8ea;
+  }
+  header {
+    padding: 16px 24px;
+    border-bottom: 1px solid #2a2d33;
+  }
+  h1 { font-size: 20px; margin: 0 0 12px 0; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+  .tab-btn {
+    background: none; border: none; color: #9aa0a6; padding: 6px 14px;
+    cursor: pointer; font-size: 14px; border-bottom: 2px solid transparent;
+  }
+  .tab-btn.active { color: #fff; border-bottom-color: #5b8def; }
+  .search-row { display: flex; gap: 8px; }
+  #query { flex: 1; padding: 10px 12px; border-radius: 6px; border: 1px solid #33363c; background: #1c1e23; color: #fff; font-size: 14px; }
+  #go, .action-btn {
+    padding: 10px 18px; border-radius: 6px; border: none; background: #5b8def; color: #fff;
+    cursor: pointer; font-size: 14px; transition: transform 0.08s ease, filter 0.15s ease;
+    position: relative;
+  }
+  #go:hover, .action-btn:hover { filter: brightness(1.1); }
+  #go:active, .action-btn:active { transform: scale(0.96); }
+  .action-btn.danger { background: #d9534f; }
+  #go:disabled, .action-btn:disabled {
+    opacity: 0.65; cursor: not-allowed; transform: none; filter: none;
+  }
+  .btn-spinner {
+    display: inline-block; width: 12px; height: 12px; margin-right: 7px;
+    border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff;
+    border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: -1px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #toast {
+    position: fixed; bottom: 20px; right: 20px; z-index: 100;
+    display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
+  }
+  .toast-msg {
+    padding: 10px 16px; border-radius: 6px; font-size: 13px; color: #fff;
+    background: #2a2d33; border-left: 3px solid #5b8def; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    animation: toast-in 0.2s ease-out;
+    max-width: 360px;
+  }
+  .toast-msg.success { border-left-color: #4caf50; }
+  .toast-msg.error { border-left-color: #d9534f; }
+  .toast-msg.fade-out { animation: toast-out 0.25s ease-in forwards; }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes toast-out { to { opacity: 0; transform: translateY(8px); } }
+  main { padding: 24px; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .summary { color: #9aa0a6; margin-bottom: 16px; font-size: 14px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 800px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  .card {
+    background: #1c1e23; border-radius: 8px; overflow: hidden; cursor: pointer;
+    border: 1px solid #2a2d33; position: relative;
+  }
+  .card img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: #0d0f12; }
+  .card .badge {
+    position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.6);
+    color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 4px;
+  }
+  .card .meta { padding: 8px 10px; font-size: 12px; }
+  .card .meta .fn { color: #e8e8ea; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .meta .score { color: #7fd67f; margin-top: 2px; }
+  #loadMore { display: block; margin: 20px auto; }
+  #spinner { display: none; text-align: center; padding: 30px; color: #9aa0a6; }
+  .status-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; max-width: 700px; margin-bottom: 20px; }
+  .stat-box { background: #1c1e23; border: 1px solid #2a2d33; border-radius: 8px; padding: 14px 16px; }
+  .stat-box .label { color: #9aa0a6; font-size: 12px; }
+  .stat-box .value { font-size: 18px; margin-top: 4px; }
+  .health-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+  .health-green { background: #4caf50; }
+  .health-red { background: #d9534f; }
+  #log { background: #0d0f12; border: 1px solid #2a2d33; border-radius: 8px; padding: 12px; height: 300px; overflow-y: auto; font-family: Consolas, monospace; font-size: 12px; white-space: pre-wrap; margin-top: 16px; }
+  footer { padding: 12px 24px; color: #6b7076; font-size: 12px; border-top: 1px solid #2a2d33; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>&#128269; Media Search</h1>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="search">Search</button>
+    <button class="tab-btn" data-tab="status">Index Status</button>
+  </div>
+  <div class="search-row" id="search-row">
+    <input id="query" type="text" placeholder="Search...">
+    <button id="go">Go</button>
+  </div>
+</header>
+
+<main>
+  <div id="search-tab" class="tab-content active">
+    <div id="spinner">Searching...</div>
+    <div class="summary" id="summary"></div>
+    <div class="grid" id="grid"></div>
+    <button id="loadMore" class="action-btn" style="display:none;">Load more</button>
+  </div>
+
+  <div id="status-tab" class="tab-content">
+    <div class="status-grid">
+      <div class="stat-box">
+        <div class="label">Indexed files</div>
+        <div class="value" id="stat-count">--</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">Last indexed</div>
+        <div class="value" id="stat-last">--</div>
+      </div>
+      <div class="stat-box">
+        <div class="label">SSH Tunnel / Ollama</div>
+        <div class="value"><span class="health-dot" id="dot-ollama"></span><span id="text-ollama">checking...</span></div>
+      </div>
+      <div class="stat-box">
+        <div class="label">Qdrant</div>
+        <div class="value"><span class="health-dot" id="dot-qdrant"></span><span id="text-qdrant">checking...</span></div>
+      </div>
+    </div>
+    <div class="stat-box" style="max-width:700px; margin-bottom: 20px;">
+      Running moondream (~2GB) + nomic-embed-text (~0.6GB) on 16GB M1
+    </div>
+    <button class="action-btn" id="btn-index-new">Index new files</button>
+    <button class="action-btn danger" id="btn-reindex">Re-index everything</button>
+    <button class="action-btn danger" id="btn-stop">Stop indexing</button>
+
+    <div id="progress-box" style="display:none; max-width:700px; margin-top:16px;">
+      <div style="display:flex; justify-content:space-between; font-size:13px; color:#9aa0a6; margin-bottom:6px;">
+        <span id="progress-text">0 / 0</span>
+        <span id="progress-eta">ETA --</span>
+      </div>
+      <div style="background:#0d0f12; border-radius:6px; height:10px; overflow:hidden;">
+        <div id="progress-bar" style="background:#5b8def; height:100%; width:0%;"></div>
+      </div>
+      <div id="current-file" style="font-size:12px; color:#9aa0a6; margin-top:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
+    </div>
+
+    <div id="log"></div>
+  </div>
+</main>
+
+<footer id="footer">Indexed -- files</footer>
+
+<div id="toast"></div>
+
+<script>
+let shownLimit = 20;
+let lastQuery = "";
+
+const PLACEHOLDER_PROMPTS = [
+  "birthday parties",
+  "a sunset at the beach",
+  "receipts and documents",
+  "photos with my dog",
+  "screenshots from last year",
+  "that hiking trip",
+  "old family photos",
+  "concert or event photos",
+];
+(function rotatePlaceholders() {
+  const input = document.getElementById("query");
+  let i = 0;
+  function next() {
+    if (document.activeElement !== input && !input.value) {
+      input.placeholder = "Search for “" + PLACEHOLDER_PROMPTS[i % PLACEHOLDER_PROMPTS.length] + "”...";
+      i++;
+    }
+  }
+  next();
+  setInterval(next, 3000);
+})();
+
+function showToast(message, type) {
+  const toast = document.createElement("div");
+  toast.className = "toast-msg" + (type ? " " + type : "");
+  toast.textContent = message;
+  document.getElementById("toast").appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add("fade-out");
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
+async function withButtonFeedback(button, loadingText, fn) {
+  const originalHTML = button.innerHTML;
+  button.disabled = true;
+  button.innerHTML = `<span class="btn-spinner"></span>${loadingText}`;
+  try {
+    await fn();
+  } finally {
+    button.disabled = false;
+    button.innerHTML = originalHTML;
+  }
+}
+
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(btn.dataset.tab + "-tab").classList.add("active");
+    document.getElementById("search-row").style.display = btn.dataset.tab === "search" ? "flex" : "none";
+  });
+});
+
+async function runSearch(append) {
+  const query = document.getElementById("query").value.trim();
+  if (!query) return;
+  lastQuery = query;
+  if (!append) shownLimit = 20;
+
+  const goBtn = document.getElementById("go");
+  document.getElementById("spinner").style.display = "block";
+  goBtn.disabled = true;
+
+  let results;
+  try {
+    const resp = await fetch("/search", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({query, limit: shownLimit})
+    });
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}));
+      throw new Error(body.detail || `Search failed (${resp.status})`);
+    }
+    results = await resp.json();
+  } catch (err) {
+    showToast(err.message || "Search failed", "error");
+    return;
+  } finally {
+    document.getElementById("spinner").style.display = "none";
+    goBtn.disabled = false;
+  }
+
+  document.getElementById("summary").textContent =
+    `Showing ${results.length} results for "${query}"`;
+
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+  for (const r of results) {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.title = r.caption;
+    card.innerHTML = `
+      <img src="${r.thumbnail_url}" loading="lazy">
+      <span class="badge">${r.type}</span>
+      <div class="meta">
+        <div class="fn">${r.filename}</div>
+        <div class="score">${r.score.toFixed(2)}</div>
+      </div>`;
+    card.addEventListener("click", () => {
+      fetch(`/open-file?path=${encodeURIComponent(r.path)}`);
+    });
+    grid.appendChild(card);
+  }
+  document.getElementById("loadMore").style.display = results.length >= shownLimit ? "block" : "none";
+}
+
+document.getElementById("go").addEventListener("click", () => runSearch(false));
+document.getElementById("query").addEventListener("keydown", e => {
+  if (e.key === "Enter") runSearch(false);
+});
+document.getElementById("loadMore").addEventListener("click", () => {
+  shownLimit += 20;
+  runSearch(true);
+});
+
+async function fetchStatus() {
+  try {
+    const resp = await fetch("/status");
+    const s = await resp.json();
+    document.getElementById("stat-count").textContent = s.indexed_count.toLocaleString();
+    document.getElementById("stat-last").textContent = s.last_indexed || "never";
+    document.getElementById("footer").textContent =
+      `Indexed ${s.indexed_count.toLocaleString()} files - Last indexed: ${s.last_indexed || "never"}`;
+
+    setHealth("ollama", s.ollama_healthy);
+    setHealth("qdrant", s.qdrant_healthy);
+
+    const box = document.getElementById("progress-box");
+    if (s.progress && s.progress.total_this_run) {
+      box.style.display = "block";
+      const p = s.progress;
+      const pct = Math.min(100, Math.round((p.processed / p.total_this_run) * 100));
+      document.getElementById("progress-text").textContent =
+        `${p.processed.toLocaleString()} / ${p.total_this_run.toLocaleString()} (${pct}%)`;
+      document.getElementById("progress-bar").style.width = pct + "%";
+      if (p.eta_seconds != null) {
+        const h = Math.floor(p.eta_seconds / 3600);
+        const m = Math.floor((p.eta_seconds % 3600) / 60);
+        document.getElementById("progress-eta").textContent = `ETA ${h}h ${m}m`;
+      } else {
+        document.getElementById("progress-eta").textContent = "estimating...";
+      }
+      document.getElementById("current-file").textContent =
+        p.current_file ? `Currently indexing: ${p.current_file}` : "";
+    } else {
+      box.style.display = "none";
+    }
+  } catch (e) {
+    setHealth("ollama", false);
+    setHealth("qdrant", false);
+  }
+}
+
+function setHealth(name, healthy) {
+  document.getElementById(`dot-${name}`).className = "health-dot " + (healthy ? "health-green" : "health-red");
+  document.getElementById(`text-${name}`).textContent = healthy ? "connected" : "unreachable";
+}
+
+async function postJSON(url, body) {
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body || {})
+  });
+  if (!resp.ok) {
+    const data = await resp.json().catch(() => ({}));
+    throw new Error(data.detail || `Request failed (${resp.status})`);
+  }
+  return resp.json();
+}
+
+document.getElementById("btn-index-new").addEventListener("click", (e) => {
+  withButtonFeedback(e.currentTarget, "Starting...", async () => {
+    try {
+      await postJSON("/index/start", {mode: "incremental"});
+      showToast("Indexing started", "success");
+      fetchStatus();
+    } catch (err) {
+      showToast(err.message, "error");
+    }
+  });
+});
+
+document.getElementById("btn-reindex").addEventListener("click", (e) => {
+  if (!confirm("Re-index everything? This deletes the existing index and starts fresh.")) return;
+  withButtonFeedback(e.currentTarget, "Starting...", async () => {
+    try {
+      await postJSON("/index/start", {mode: "full"});
+      showToast("Full re-index started", "success");
+      fetchStatus();
+    } catch (err) {
+      showToast(err.message, "error");
+    }
+  });
+});
+
+document.getElementById("btn-stop").addEventListener("click", (e) => {
+  withButtonFeedback(e.currentTarget, "Stopping...", async () => {
+    try {
+      await postJSON("/index/stop");
+      showToast("Stopping after the current file...", "success");
+      fetchStatus();
+    } catch (err) {
+      showToast(err.message, "error");
+    }
+  });
+});
+
+const logEl = document.getElementById("log");
+const evtSource = new EventSource("/index/progress");
+evtSource.onmessage = (e) => {
+  if (!e.data) return;
+  logEl.textContent += e.data + "\n";
+  logEl.scrollTop = logEl.scrollHeight;
+};
+
+fetchStatus();
+setInterval(fetchStatus, 5000);
+</script>
+
+</body>
+</html>
