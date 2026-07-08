@@ -40,17 +40,18 @@ for /f "usebackq tokens=1,* delims==" %%A in (".env") do (
     if "%%A"=="QDRANT_MODE" set "QDRANT_MODE=%%B"
 )
 
-if /i "%QDRANT_MODE%"=="server" (
-    echo [1/4] Starting Qdrant (Docker)...
-    docker compose up -d
-    if errorlevel 1 (
-        echo Failed to start Qdrant. Is Docker Desktop running?
-        pause
-        exit /b 1
-    )
-) else (
-    echo [1/4] Qdrant configured as embedded -- no Docker needed, skipping.
+if /i not "%QDRANT_MODE%"=="server" goto skip_docker
+echo [1/4] Starting Qdrant (Docker)...
+docker compose --progress plain up -d
+if errorlevel 1 (
+    echo Failed to start Qdrant. Is Docker Desktop running?
+    pause
+    exit /b 1
 )
+goto docker_done
+:skip_docker
+echo [1/4] Qdrant configured as embedded -- no Docker needed, skipping.
+:docker_done
 
 if /i "%OLLAMA_REMOTE%"=="true" (
     echo [2/4] Starting SSH tunnel to your Ollama machine in a new window...
