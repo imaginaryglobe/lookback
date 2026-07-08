@@ -13,19 +13,19 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
-from qdrant_client import QdrantClient
 from qdrant_client.models import Filter, FieldCondition, MatchValue
 from sse_starlette.sse import EventSourceResponse
 
 import config
 import indexer
 import log_broadcaster
+import qdrant_db
 from hashing import path_to_hash_hex
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-qdrant_client = QdrantClient(host=config.QDRANT_HOST, port=config.QDRANT_PORT)
+qdrant_client = qdrant_db.get_qdrant_client()
 http_client = httpx.Client()
 
 _index_lock = threading.Lock()
@@ -196,11 +196,20 @@ def get_status():
         except httpx.HTTPError:
             return False
 
+    def _qdrant_healthy() -> bool:
+        if config.QDRANT_MODE == "server":
+            return _ping(f"http://{config.QDRANT_HOST}:{config.QDRANT_PORT}")
+        try:
+            qdrant_client.get_collections()
+            return True
+        except Exception:
+            return False
+
     return {
         "indexed_count": count,
         "last_indexed": last_indexed,
         "ollama_healthy": _ping(config.OLLAMA_URL),
-        "qdrant_healthy": _ping(f"http://{config.QDRANT_HOST}:{config.QDRANT_PORT}"),
+        "qdrant_healthy": _qdrant_healthy(),
         "indexing_in_progress": _indexing_in_progress,
         "progress": {
             "processed": progress.get("processed"),
@@ -215,7 +224,7 @@ def get_status():
 def _run_indexer_thread(mode: str):
     global _indexing_in_progress
     try:
-        indexer.run_indexer(mode, stop_event=_stop_event)
+        indexer.run_indexer(mode, stop_event=_stop_event, client=qdrant_client)
     except Exception as e:
         indexer.logger.info(f"Indexing run aborted: {e}")
     finally:

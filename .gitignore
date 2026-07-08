@@ -11,6 +11,7 @@ __pycache__/
 
 # Generated / runtime data (personal media metadata)
 qdrant_storage/
+qdrant_data/
 thumbnails/
 frames/
 index_progress.json

@@ -19,8 +19,12 @@ EMBED_MODEL = os.environ.get("EMBED_MODEL", "nomic-embed-text")   # Embedding mo
 QUERY_MODEL = os.environ.get("QUERY_MODEL", "llama3.2")           # Query expansion + reranking model
 
 # --- Qdrant ---
-QDRANT_HOST = os.environ.get("QDRANT_HOST", "localhost")          # Qdrant runs locally (via Docker)
-QDRANT_PORT = int(os.environ.get("QDRANT_PORT", "6333"))          # Qdrant default port
+# "embedded" (default) runs Qdrant in-process at QDRANT_PATH -- no Docker/server needed.
+# "server" connects to a running Qdrant instance (e.g. via docker-compose.yml) at QDRANT_HOST:QDRANT_PORT.
+QDRANT_MODE = os.environ.get("QDRANT_MODE", "embedded")
+QDRANT_PATH = os.environ.get("QDRANT_PATH", "./qdrant_data")
+QDRANT_HOST = os.environ.get("QDRANT_HOST", "localhost")
+QDRANT_PORT = int(os.environ.get("QDRANT_PORT", "6333"))
 QDRANT_COLLECTION = os.environ.get("QDRANT_COLLECTION", "media_index")  # Collection name
 
 # --- Indexing ---

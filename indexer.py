@@ -15,6 +15,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
 
 import config
+import qdrant_db
 from hashing import path_to_hash_hex, path_to_id
 from log_broadcaster import get_indexer_logger
 
@@ -320,9 +321,9 @@ def format_file_size(path: str) -> str:
         size_bytes /= 1024
 
 
-def run_indexer(mode: str = "incremental", stop_event=None) -> None:
+def run_indexer(mode: str = "incremental", stop_event=None, client: QdrantClient = None) -> None:
     http_client = httpx.Client()
-    qdrant_client = QdrantClient(host=config.QDRANT_HOST, port=config.QDRANT_PORT)
+    qdrant_client = client if client is not None else qdrant_db.get_qdrant_client()
 
     run_startup_checks(http_client, qdrant_client)
     ensure_collection(qdrant_client)

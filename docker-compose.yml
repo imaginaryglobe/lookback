@@ -1,4 +1,6 @@
-# Qdrant vector database, self-hosted via Docker.
+# Optional: only needed if QDRANT_MODE=server in your .env.
+# By default the app runs Qdrant embedded (no Docker needed) -- see .env.example.
+# This compose file is for the advanced case of a standalone Qdrant server.
 # Data persists in ./qdrant_storage (bind mount) so it survives container restarts/recreation.
 services:
   qdrant:
