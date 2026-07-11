@@ -11,6 +11,14 @@ THUMBNAILS_PATH = r".\thumbnails"       # Cached thumbnail storage
 INDEX_PROGRESS_FILE = "index_progress.json"  # Local checkpoint/progress cache (not authoritative -- Qdrant is)
 INDEX_STATS_FILE = "indexing_stats.json"     # Persisted cumulative avg-seconds-per-file, survives restarts
 
+# --- Web server ---
+# 127.0.0.1 (default) only accepts connections from this machine. Set to 0.0.0.0
+# only if you deliberately want other devices on your network to reach the UI --
+# note that captions/thumbnails can include sensitive content (IDs, documents, etc.)
+# and there is no login, so anyone who can reach the port can see them.
+HOST = os.environ.get("HOST", "127.0.0.1")
+PORT = int(os.environ.get("PORT", "8000"))
+
 # --- Ollama (may be local, or tunneled from a remote machine -- see start_tunnel.bat) ---
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_REMOTE = os.environ.get("OLLAMA_REMOTE", "false").lower() == "true"

@@ -78,6 +78,8 @@ If your main computer doesn't have much spare RAM, you can run Ollama on another
 
 | Variable | What it controls |
 |---|---|
+| `HOST` | Defaults to `127.0.0.1` (this machine only). Only change to `0.0.0.0` if you deliberately want other devices on your network to reach the UI -- there's no login, and captions can include sensitive content. |
+| `PORT` | Which port the web server listens on (default `8000`) |
 | `SSD_PATH` | The folder that gets indexed |
 | `OLLAMA_URL` | Where the app looks for Ollama (almost always `http://localhost:11434`, even for a remote machine — the SSH tunnel maps it there) |
 | `OLLAMA_REMOTE` | `true` if Ollama runs on another machine (controls whether the SSH tunnel starts automatically) |
