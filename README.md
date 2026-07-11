@@ -13,6 +13,8 @@ It works by having a local AI model look at each photo/video and write a descrip
 
 Nothing here calls out to the internet during search or indexing — the only network traffic is between your own machine(s).
 
+> **Windows only.** The setup/launch scripts (`run_all.bat`, `start_tunnel.bat`) and the "open file" feature are Windows-specific. It hasn't been adapted for macOS/Linux.
+
 ## What you'll need before starting
 
 | Requirement | Why | Notes |
