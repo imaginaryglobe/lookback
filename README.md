@@ -1,5 +1,7 @@
 # Media Search
 
+A local AI describes every photo/video you own, and you search those descriptions in plain English.
+
 Search your own photos and videos with plain-language queries — "birthday parties," "receipts from last year," "that hike we did in the fall" — instead of scrolling through folders. Everything runs on your own machine (or your own home network): your files are never uploaded anywhere, and no cloud AI service ever sees them.
 
 It works by having a local AI model look at each photo/video and write a description of what's in it, then turning that description into a vector so you can search by meaning rather than exact filenames or tags.
