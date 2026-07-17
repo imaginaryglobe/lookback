@@ -63,13 +63,19 @@ def _expand_query(query: str) -> str:
         "that might appear in image descriptions matching what they're looking for. "
         "Return only a comma-separated list of terms, nothing else."
     )
-    resp = http_client.post(
-        f"{config.OLLAMA_URL}/api/generate",
-        json={"model": config.QUERY_MODEL, "prompt": prompt, "stream": False},
-        timeout=60,
-    )
-    resp.raise_for_status()
-    expanded_raw = resp.json()["response"]
+    try:
+        payload = {"model": config.QUERY_MODEL, "prompt": prompt, "stream": False}
+        if indexer.model_supports_thinking(http_client, config.QUERY_MODEL):
+            payload["think"] = False
+        resp = http_client.post(
+            f"{config.OLLAMA_URL}/api/generate",
+            json=payload,
+            timeout=60,
+        )
+        resp.raise_for_status()
+        expanded_raw = resp.json()["response"]
+    except Exception:
+        return query  # fall back to plain embedding search
     terms = [t.strip() for t in expanded_raw.split(",") if t.strip()]
     return query + " " + " ".join(terms)
 
@@ -77,7 +83,9 @@ def _expand_query(query: str) -> str:
 def _embed(text: str) -> list:
     resp = http_client.post(
         f"{config.OLLAMA_URL}/api/embeddings",
-        json={"model": config.EMBED_MODEL, "prompt": text},
+        # num_gpu 0: see indexer.embed_text -- keeps the embedder off the GPU so
+        # vision-model memory pressure can't crash it.
+        json={"model": config.EMBED_MODEL, "prompt": text, "options": {"num_gpu": 0}},
         timeout=60,
     )
     resp.raise_for_status()
@@ -95,9 +103,12 @@ def _rerank(query: str, results: list) -> list:
         "relevant to the query. Include at most 10 filenames. No other text."
     )
     try:
+        payload = {"model": config.QUERY_MODEL, "prompt": prompt, "stream": False}
+        if indexer.model_supports_thinking(http_client, config.QUERY_MODEL):
+            payload["think"] = False
         resp = http_client.post(
             f"{config.OLLAMA_URL}/api/generate",
-            json={"model": config.QUERY_MODEL, "prompt": prompt, "stream": False},
+            json=payload,
             timeout=60,
         )
         resp.raise_for_status()
@@ -119,6 +130,9 @@ def search(req: SearchRequest):
     results = qdrant_client.search(
         collection_name=config.QDRANT_COLLECTION,
         query_vector=vector,
+        query_filter=Filter(
+            must=[FieldCondition(key="status", match=MatchValue(value="indexed"))]
+        ),
         limit=req.limit,
         with_payload=True,
     )
@@ -159,7 +173,7 @@ def get_thumbnail(path: str):
     return FileResponse(cache_path, media_type="image/jpeg")
 
 
-@app.get("/open-file")
+@app.post("/open-file")
 def open_file(path: str):
     resolved = _validate_path(path)
     if not resolved.exists():

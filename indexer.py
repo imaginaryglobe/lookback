@@ -87,16 +87,37 @@ def call_with_retry(fn, *args, **kwargs):
     raise last_exc
 
 
+_think_support_cache = {}
+
+
+def model_supports_thinking(http_client: httpx.Client, model: str) -> bool:
+    """Disable thinking only on models that support it -- passing "think" to
+    other models (e.g. moondream) makes Ollama return an empty response."""
+    if model not in _think_support_cache:
+        try:
+            resp = http_client.post(
+                f"{config.OLLAMA_URL}/api/show", json={"model": model}, timeout=10
+            )
+            resp.raise_for_status()
+            _think_support_cache[model] = "thinking" in resp.json().get("capabilities", [])
+        except Exception:
+            _think_support_cache[model] = False
+    return _think_support_cache[model]
+
+
 def caption_image_bytes(http_client: httpx.Client, jpeg_bytes: bytes) -> str:
     def _call():
+        payload = {
+            "model": config.VISION_MODEL,
+            "prompt": CAPTION_PROMPT,
+            "images": [base64.b64encode(jpeg_bytes).decode("ascii")],
+            "stream": False,
+        }
+        if model_supports_thinking(http_client, config.VISION_MODEL):
+            payload["think"] = False
         resp = http_client.post(
             f"{config.OLLAMA_URL}/api/generate",
-            json={
-                "model": config.VISION_MODEL,
-                "prompt": CAPTION_PROMPT,
-                "images": [base64.b64encode(jpeg_bytes).decode("ascii")],
-                "stream": False,
-            },
+            json=payload,
             timeout=120,
         )
         resp.raise_for_status()
@@ -109,7 +130,10 @@ def embed_text(http_client: httpx.Client, text: str) -> list:
     def _call():
         resp = http_client.post(
             f"{config.OLLAMA_URL}/api/embeddings",
-            json={"model": config.EMBED_MODEL, "prompt": text},
+            # num_gpu 0 runs the embedder on CPU: it's tiny (137M params) so speed
+            # is unaffected, and it can't be killed by GPU memory pressure from
+            # the much larger vision model (Metal OOM crashes the runner until reload).
+            json={"model": config.EMBED_MODEL, "prompt": text, "options": {"num_gpu": 0}},
             timeout=60,
         )
         resp.raise_for_status()
@@ -122,9 +146,12 @@ def summarize_captions(http_client: httpx.Client, captions: list) -> str:
     prompt = VIDEO_SUMMARY_PROMPT_TEMPLATE.format(captions="\n".join(f"- {c}" for c in captions))
 
     def _call():
+        payload = {"model": config.QUERY_MODEL, "prompt": prompt, "stream": False}
+        if model_supports_thinking(http_client, config.QUERY_MODEL):
+            payload["think"] = False
         resp = http_client.post(
             f"{config.OLLAMA_URL}/api/generate",
-            json={"model": config.QUERY_MODEL, "prompt": prompt, "stream": False},
+            json=payload,
             timeout=120,
         )
         resp.raise_for_status()
@@ -133,7 +160,7 @@ def summarize_captions(http_client: httpx.Client, captions: list) -> str:
     return call_with_retry(_call)
 
 
-CAPTION_MAX_DIMENSION = 1024  # moondream downsamples internally; no captioning benefit above this
+CAPTION_MAX_DIMENSION = 1024  # vision models downsample internally; no captioning benefit above this
 
 
 def load_image_as_jpeg_bytes(path: str) -> bytes:
@@ -240,7 +267,11 @@ def extract_video_frames(video_path: str, out_dir: str) -> list:
 
     max_frames = 20
     if len(frames) > max_frames:
-        keep = set(frames[i] for i in range(0, len(frames), len(frames) // max_frames))
+        # Evenly sample exactly max_frames, always including first and last.
+        keep = {
+            frames[round(i * (len(frames) - 1) / (max_frames - 1))]
+            for i in range(max_frames)
+        }
         for f in frames:
             if f not in keep:
                 try:
