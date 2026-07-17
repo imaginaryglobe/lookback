@@ -4,7 +4,7 @@ Lookback looks at every photo and video on your drive, writes a quick descriptio
 
 It all runs on your own machine (or your own home network). Nothing gets uploaded, and no cloud AI service ever sees your files.
 
-![Search results for "outdoor scenes"](docs/screenshot-search.jpg)
+![Search results for "outdoor scenes"](docs/screenshot-search1.jpg)
 
 > **Windows only.** The setup/launch scripts and the "open file" feature are Windows-specific.
 
