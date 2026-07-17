@@ -17,5 +17,9 @@ frames/
 index_progress.json
 indexing_stats.json
 
+# Throwaway demo data for README screenshots
+demo_photos/
+demo_qdrant_data/
+
 # Internal dev notes, not meant for the public repo
 media_search_app_spec.md
