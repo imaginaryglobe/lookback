@@ -106,4 +106,4 @@ img-searcher/
 
 ## License
 
-_No license has been chosen yet for this project — until one is added, all rights are reserved by default._
+MIT — see [LICENSE](LICENSE).
