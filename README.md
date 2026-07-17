@@ -1,8 +1,8 @@
-# Media Search
+# Lookback
 
-A local AI describes every photo/video you own, and you search those descriptions in plain English.
+Lookback looks at every photo and video on your drive, writes a quick description of what's in it, and lets you search those descriptions instead of digging through folders. Type "birthday parties" or "that hike we did in the fall" and it finds them.
 
-Search your own photos and videos with plain-language queries — "birthday parties," "receipts from last year," "that hike we did in the fall" — instead of scrolling through folders. Everything runs on your own machine (or your own home network): your files are never uploaded anywhere, and no cloud AI service ever sees them.
+It all runs on your own machine (or your own home network). Nothing gets uploaded, and no cloud AI service ever sees your files.
 
 > **Windows only.** The setup/launch scripts and the "open file" feature are Windows-specific.
 
